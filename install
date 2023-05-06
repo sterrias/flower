@@ -1,0 +1,73 @@
+  - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        working-directory: floor_annotation
+        run: dart pub get
+
+      - name: Analyze
+        working-directory: floor_annotation
+        run: dart analyze --fatal-infos --fatal-warnings .
+
+      - name: Format
+        working-directory: floor_annotation
+        run: dart format --output=none --set-exit-if-changed .
+
+  floor-generator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    container:
+      image: dart:2.19.3
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        working-directory: floor_generator
+        run: dart pub get
+
+      - name: Analyze
+        working-directory: floor_generator
+        run: dart analyze --fatal-infos --fatal-warnings .
+
+      - name: Format
+        working-directory: floor_generator
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Run tests
+        working-directory: floor_generator
+        run: dart run test_cov
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: floor_generator
+          file: ./floor_generator/coverage/lcov.info
+
+  floor:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ macos-latest, windows-latest, ubuntu-latest ]
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          architecture: x64
+
+      - name: Install dependencies
+        run: flutter packages get
+        working-directory: floor
+
+      - name: Run generator
+        run: flutter packages pub run build_runner build --delete-conflicting-outputs
+        working-directory: floor
